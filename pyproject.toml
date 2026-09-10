@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "insta360stitch"
+version = "0.1.0"
+description = "Stitch and view Insta360 ONE X .insp photos with parallax-aware seams"
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.24", "opencv-python>=4.8", "pillow>=9.0"]
+
+[project.scripts]
+insta360stitch = "insta360stitch.cli:main"
+
+[tool.setuptools]
+packages = ["insta360stitch"]
