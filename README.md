@@ -1,8 +1,14 @@
 # Insta360 ONE X stitcher and viewer
 
-A small desktop app (Linux and Windows) that turns the `.insp` photos an
-Insta360 ONE X writes into finished 360° panoramas and lets you look around in
-them. Point it at a folder, press *Stitch*, drag to look around.
+Turns the `.insp` photos an Insta360 ONE X writes into finished 360°
+panoramas and lets you look around in them. Point it at a folder, press
+*Stitch*, drag to look around. Two front ends share the same method:
+
+- **Web app** (`docs/`): runs entirely in the browser, hosted as static files
+  on GitHub Pages. Nothing is uploaded; photos are read from your disk and
+  processed with WebGL 2 plus plain JavaScript. No install.
+- **Desktop app** (`insta360stitch/`): Python, Tkinter and OpenCV for Linux and
+  Windows, with a batch command line. The reference implementation.
 
 The processing follows the Hugin workflow, automated:
 
@@ -26,7 +32,46 @@ only, so the rest of the sphere keeps its true geometry. Regions where the flow
 is unreliable (occlusions, the hand holding the camera) fall back to the plain
 seam.
 
-## Install and run
+## Web app (GitHub Pages)
+
+The `docs/` folder is a complete static site. To publish it, enable GitHub
+Pages for the repository with *Deploy from a branch*, choose the branch and
+the `/docs` folder, and open the URL GitHub shows. To try it locally, serve
+the folder with any static server, for example:
+
+```bash
+python -m http.server --directory docs 8000     # then open http://localhost:8000
+```
+
+How to use it:
+
+1. *Open folder…* picks a folder (Chrome and Edge open it directly and can
+   write results back into a `stitched/` sub-folder; Firefox and Safari use
+   the browser's folder chooser and the results are kept in memory for
+   *Download panorama*). *Open files…* picks individual `.insp` files.
+2. Select a photo, press *Stitch selected* or double-click it; *Stitch all*
+   works through the folder. Progress shows in the status bar.
+3. Drag to look around, wheel or pinch to zoom, arrows to pan, `F` for the
+   flat equirectangular view, double-click to reset.
+
+The width menu only offers sizes the GPU can hold; 4096 is the default, 6080
+the camera's native size. Stitching takes a second or two on a desktop GPU at
+4096. A file's IMU data is borrowed from a bracket sibling (same
+`IMG_<date>_<time>` prefix) when the file itself has none, exactly like the
+desktop app. The refined lens model is remembered per camera serial in the
+browser's local storage.
+
+What runs where: the fisheye-to-equirectangular projection, exposure gains,
+compositing and levelling are WebGL 2 fragment shaders; the seam work
+(optical flow, seam search, Laplacian blend) is typed-array JavaScript on the
+two narrow seam bands only. The optical flow is a coarse-to-fine block
+matcher with zero-mean SAD, sub-pixel refinement and a forward/backward
+check, and the lens refinement fits FOV and rear-lens rotation to the
+forward/backward-consistent flow vectors with the same Cauchy-weighted
+Levenberg–Marquardt as the desktop app. The two implementations agree to
+within about 2.5 grey levels on the same input at the same size.
+
+## Desktop app: install and run
 
 Requirements: Python 3.9 or newer with Tkinter (included with the python.org
 Windows installer; on Linux install `python3-tk` from your distribution).
@@ -108,6 +153,18 @@ samples (`uint64` timestamp, 3 doubles accelerometer, 3 doubles gyro).
 ## Layout
 
 ```
+docs/            the web app (GitHub Pages)
+  index.html, style.css
+  js/insp.js     .insp parser
+  js/geometry.js lens model, rotations
+  js/gl.js       WebGL 2 helper and the projection / levelling / viewer shaders
+  js/imageops.js typed-array image operations (blur, pyramids, resampling)
+  js/flow.js     block-matching optical flow + forward/backward check
+  js/calibrate.js lens refinement (control points from flow, robust LM)
+  js/stitch.js   pipeline: bands, gains, seams, parallax warp, blend, level
+  js/jpeg.js     JPEG with Exif + GPano XMP
+  js/viewer.js   360 viewer
+  js/app.js      UI, folder access, queue, downloads
 insta360stitch/
   insp.py        .insp parser (JPEG, trailer records, calibration, IMU)
   geometry.py    rotations, equirectangular grid, fisheye lens model, renderer

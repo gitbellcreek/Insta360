@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Insta360 ONE X stitcher</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2714%27 fill=%27%234f8cff%27/%3E%3Cellipse cx=%2716%27 cy=%2716%27 rx=%276%27 ry=%2714%27 fill=%27none%27 stroke=%27white%27 stroke-width=%272%27/%3E%3Cline x1=%272%27 y1=%2716%27 x2=%2730%27 y2=%2716%27 stroke=%27white%27 stroke-width=%272%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="toolbar">
+  <button id="btnOpen" class="primary">Open folder…</button>
+  <input id="folderInput" type="file" webkitdirectory multiple hidden>
+  <input id="filesInput" type="file" accept=".insp" multiple hidden>
+  <button id="btnFiles" title="Pick individual .insp files">Open files…</button>
+  <span id="folderName" class="muted">no folder</span>
+  <span class="sep"></span>
+  <label>Width <select id="width"></select></label>
+  <label><input id="optParallax" type="checkbox" checked> Parallax fix</label>
+  <label><input id="optLevel" type="checkbox" checked> Auto level</label>
+  <label><input id="optRefine" type="checkbox" checked> Refine lenses</label>
+  <span class="sep"></span>
+  <button id="btnStitch" disabled>Stitch selected</button>
+  <button id="btnStitchAll" disabled>Stitch all</button>
+  <button id="btnCancel" disabled>Cancel</button>
+  <span class="grow"></span>
+  <button id="btnDownload" disabled>Download panorama</button>
+</header>
+<main>
+  <aside class="sidebar">
+    <div class="sidebar-title">Photos (.insp)</div>
+    <ul id="fileList" class="file-list"></ul>
+    <pre id="info" class="info"></pre>
+  </aside>
+  <section class="viewer">
+    <canvas id="view"></canvas>
+    <div id="hud" class="hud"></div>
+  </section>
+</main>
+<footer class="statusbar">
+  <span id="status">Loading…</span>
+  <progress id="progress" hidden></progress>
+</footer>
+<div id="unsupported" class="overlay" hidden>
+  <div>
+    <h2>This browser cannot run the stitcher</h2>
+    <p id="unsupportedWhy"></p>
+    <p>Use a current Chrome, Edge, Firefox or Safari with WebGL 2 enabled.</p>
+  </div>
+</div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
