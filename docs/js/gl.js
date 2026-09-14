@@ -165,6 +165,7 @@ uniform float uFocal;    // pixels
 uniform mat3 uR;         // camera -> world
 uniform int uFlat;
 uniform vec4 uFlatRect;  // x, y, w, h of the flat image on the canvas
+uniform float uFlipY;    // 1 on screen, -1 when rendering to a framebuffer for readback
 out vec4 o;
 void main() {
   if (uFlat == 1) {
@@ -173,7 +174,7 @@ void main() {
     if (t.x < 0.0 || t.x > 1.0 || t.y < 0.0 || t.y > 1.0) { o = vec4(0.09, 0.09, 0.1, 1.0); return; }
     o = vec4(texture(uPano, t).rgb, 1.0); return;
   }
-  vec3 d = normalize(vec3((gl_FragCoord.x - uView.x * 0.5) / uFocal, (gl_FragCoord.y - uView.y * 0.5) / uFocal, 1.0));
+  vec3 d = normalize(vec3((gl_FragCoord.x - uView.x * 0.5) / uFocal, uFlipY * (gl_FragCoord.y - uView.y * 0.5) / uFocal, 1.0));
   vec3 c = uR * d;
   float lon = atan(c.x, c.z);
   float lat = asin(clamp(c.y, -1.0, 1.0));

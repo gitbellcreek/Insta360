@@ -38,3 +38,5 @@ progress { width: 160px; }
   .info { max-height: 30%; }
 }
 .overlay[hidden] { display: none; }
+.crop-frame { position: absolute; border: 1px solid rgba(255,255,255,.85); box-shadow: 0 0 0 9999px rgba(0,0,0,.45); pointer-events: none; }
+.crop-frame[hidden] { display: none; }

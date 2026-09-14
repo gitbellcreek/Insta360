@@ -16,8 +16,8 @@ function gpanoXmp(width, height) {
   return seg;
 }
 
-/** Encode RGBA pixels as a 360 JPEG Blob. */
-export async function encodePanoJpeg(rgba, W, H, quality = 0.95, exifSeg = null) {
+/** Encode RGBA pixels as a JPEG Blob; with gpano=true it is tagged as a 360 photo. */
+export async function encodeJpeg(rgba, W, H, quality = 0.95, exifSeg = null, gpano = false) {
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext("2d");
@@ -31,7 +31,9 @@ export async function encodePanoJpeg(rgba, W, H, quality = 0.95, exifSeg = null)
   let i = 2;
   if (data[2] === 0xff && data[3] === 0xe0) { const ln = (data[4] << 8) | data[5]; parts.push(data.subarray(2, 4 + ln)); i = 4 + ln; }
   if (exifSeg) parts.push(exifSeg);
-  parts.push(gpanoXmp(W, H));
+  if (gpano) parts.push(gpanoXmp(W, H));
   parts.push(data.subarray(i));
   return new Blob(parts, { type: "image/jpeg" });
 }
+
+export const encodePanoJpeg = (rgba, W, H, quality = 0.95, exifSeg = null) => encodeJpeg(rgba, W, H, quality, exifSeg, true);

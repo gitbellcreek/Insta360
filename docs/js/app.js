@@ -1,7 +1,7 @@
 // The app: folder picking, file list, stitching queue, viewer, downloads.
 import { GL } from "./gl.js";
 import { accelFromImu, exifSegment, parseInsp, siblingPrefix } from "./insp.js";
-import { encodePanoJpeg } from "./jpeg.js";
+import { encodeJpeg, encodePanoJpeg } from "./jpeg.js";
 import { Stitcher, defaultOptions } from "./stitch.js";
 import { PanoViewer } from "./viewer.js";
 
@@ -44,7 +44,65 @@ class App {
     $("btnStitchAll").onclick = () => { const todo = this.entries.map((e, i) => (!e.blob && !e.existing) ? i : -1).filter(i => i >= 0); this.enqueue(todo.length ? todo : this.entries.map((_, i) => i)); };
     $("btnCancel").onclick = () => { this.cancel = true; this.queue = []; this.setStatus("Cancelling after the current file…"); };
     $("btnDownload").onclick = () => this.download();
-    ["optParallax", "optLevel", "optRefine", "width"].forEach(id => { $(id).onchange = () => {}; });
+    $("btnSaveView").onclick = () => this.saveView();
+    $("viewSize").onchange = () => this.updateCropFrame();
+    new ResizeObserver(() => this.updateCropFrame()).observe($("view"));
+    const origRender = this.viewer.render.bind(this.viewer);
+    this.viewer.render = () => { origRender(); this.updateCropFrame(); };
+    $("view").addEventListener("keydown", e => { if (e.key.toLowerCase() === "s" && !e.ctrlKey && !e.metaKey) { e.preventDefault(); this.saveView(); } });
+  }
+
+  viewSize() {
+    const v = $("viewSize").value;
+    if (v === "window") { const c = $("view"); return [c.width, c.height]; }
+    const [w, h] = v.split("x").map(Number); return [w, h];
+  }
+
+  updateCropFrame() {
+    const frame = $("cropFrame");
+    const v = this.viewer;
+    const show = v.hasPano && v.mode === "pano" && $("viewSize").value !== "window";
+    if (!show) { frame.hidden = true; return; }
+    const [W, H] = this.viewSize();
+    const f = v.exportFrame(W, H);
+    const c = $("view");
+    if (Math.abs(f.w - c.clientWidth) < 1 && Math.abs(f.h - c.clientHeight) < 1) { frame.hidden = true; return; }
+    frame.hidden = false;
+    frame.style.left = f.x + "px"; frame.style.top = f.y + "px"; frame.style.width = f.w + "px"; frame.style.height = f.h + "px";
+  }
+
+  /** Save what is on screen as a normal (rectilinear) photo. */
+  async saveView() {
+    const v = this.viewer;
+    if (!v.hasPano) { this.setStatus("Open a stitched panorama first, then look around and press Save view."); return; }
+    if (v.mode !== "pano") v.mode = "pano";
+    const [W, H] = this.viewSize();
+    const f = v.exportFrame(W, H);
+    const r = v.renderView(W, H, f.fovH);
+    if (!r) return;
+    const e = this.entries[this.selected];
+    const exif = e && e.insp ? exifSegment(e.insp.jpeg) : null;
+    const blob = await encodeJpeg(r.rgba, r.W, r.H, 0.92, exif, false);
+    const stem = e ? e.name.replace(/\.insp$/i, "") : "view";
+    const fmt = (x, d) => (x >= 0 ? "+" : "-") + String(Math.round(Math.abs(x))).padStart(d, "0");
+    const name = `${stem}_view_yaw${fmt(v.yaw, 3)}_pitch${fmt(v.pitch, 2)}_fov${Math.round(f.fovH)}.jpg`;
+    let where = "downloaded";
+    if (this.dirHandle) {
+      try {
+        const dir = await this.dirHandle.getDirectoryHandle("stitched", { create: true });
+        const fh = await dir.getFileHandle(name, { create: true });
+        const w = await fh.createWritable(); await w.write(blob); await w.close();
+        where = "saved to stitched/";
+      } catch (err) { this.triggerDownload(blob, name); }
+    } else this.triggerDownload(blob, name);
+    this.setStatus(`View ${r.W}×${r.H} (yaw ${v.yaw.toFixed(0)}, pitch ${v.pitch.toFixed(0)}, fov ${f.fovH.toFixed(0)}) ${where} as ${name}`);
+  }
+
+  triggerDownload(blob, name) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   }
 
   options() {
@@ -135,6 +193,7 @@ class App {
       const insp = await this.readEntry(e);
       const src = insp.thumbnail ? new Blob([insp.thumbnail], { type: "image/jpeg" }) : new Blob([insp.jpeg], { type: "image/jpeg" });
       const bmp = await createImageBitmap(src);
+      $("btnSaveView").disabled = true;
       await this.viewer.setFlat(bmp, "Not stitched yet - double-click the file or press 'Stitch selected'");
       bmp.close();
       const acc = accelFromImu(insp.imu);
@@ -145,6 +204,7 @@ class App {
   }
 
   async showPano(blob) {
+    $("btnSaveView").disabled = false;
     let bmp = await createImageBitmap(blob);
     const max = this.viewer.gl.maxTex;
     if (bmp.width > max) {
@@ -168,10 +228,7 @@ class App {
   download() {
     const e = this.entries[this.selected];
     if (!e || !e.blob) return;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(e.blob); a.download = e.name.replace(/\.insp$/i, "") + ".jpg";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    this.triggerDownload(e.blob, e.name.replace(/\.insp$/i, "") + ".jpg");
   }
 
   // ---------------------------------------------------------- stitching

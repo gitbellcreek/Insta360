@@ -69,6 +69,40 @@ export class PanoViewer {
   }
   _onUp(e) { this._pointers.delete(e.pointerId); if (this._pointers.size < 2) this._pinch = null; if (this._pointers.size === 0) this._drag = null; }
 
+  /**
+   * Render the current viewpoint as a W x H photo (RGBA, top-down rows).
+   * fovH is the horizontal field of view in degrees; defaults to the on-screen one.
+   */
+  renderView(W, H, fovH = this.fov) {
+    if (!this.tex || !this.hasPano) return null;
+    W = Math.min(W, this.gl.maxTex); H = Math.min(H, this.gl.maxTex);
+    const fbo = this.gl.framebuffer(W, H);
+    const R = mat3Mul(rotY(this.yaw), rotX(-this.pitch));
+    const focal = (W / 2) / Math.tan(fovH * Math.PI / 360);
+    this.gl.draw(this.prog, fbo, (g, u) => {
+      g.uniform2f(u.uView, W, H); g.uniform1f(u.uFocal, focal); g.uniformMatrix3fv(u.uR, false, GL.mat3(R));
+      g.uniform1i(u.uFlat, 0); g.uniform4f(u.uFlatRect, 0, 0, 1, 1); g.uniform1f(u.uFlipY, -1.0);
+    }, { uPano: this.tex });
+    const rgba = this.gl.readPixels(fbo);
+    this.gl.deleteFramebuffer(fbo);
+    this.requestRender();
+    return { rgba, W, H };
+  }
+
+  /**
+   * The on-screen rectangle (CSS px) that a W x H export covers, and the
+   * horizontal FOV to render it with.  Wider outputs keep the full width
+   * (letterbox); taller outputs keep the full height (pillarbox).
+   */
+  exportFrame(W, H) {
+    const cw = this.canvas.clientWidth, ch = this.canvas.clientHeight;
+    const ao = W / H, ac = cw / ch;
+    if (ao >= ac) { const fh = cw / ao; return { x: 0, y: (ch - fh) / 2, w: cw, h: fh, fovH: this.fov }; }
+    const fw = ch * ao;
+    const fovH = 2 * Math.atan(Math.tan(this.fov * Math.PI / 360) * (fw / cw)) * 180 / Math.PI;
+    return { x: (cw - fw) / 2, y: 0, w: fw, h: ch, fovH };
+  }
+
   // ---- rendering
   requestRender() { if (!this._raf) this._raf = requestAnimationFrame(() => { this._raf = 0; this.render(); }); }
   render() {
@@ -87,13 +121,13 @@ export class PanoViewer {
       const focal = (w / 2) / Math.tan(this.fov * Math.PI / 360);
       this.gl.draw(this.prog, null, (g, u) => {
         g.uniform2f(u.uView, w, h); g.uniform1f(u.uFocal, focal); g.uniformMatrix3fv(u.uR, false, GL.mat3(R));
-        g.uniform1i(u.uFlat, flat ? 1 : 0); g.uniform4f(u.uFlatRect, (w - fw) / 2, (h - fh) / 2, fw, fh);
+        g.uniform1i(u.uFlat, flat ? 1 : 0); g.uniform4f(u.uFlatRect, (w - fw) / 2, (h - fh) / 2, fw, fh); g.uniform1f(u.uFlipY, 1.0);
       }, { uPano: this.tex });
     }
     if (this.hud) {
       const parts = [];
       if (this.message) parts.push(this.message);
-      if (this.hasPano && this.mode === "pano") parts.push(`yaw ${this.yaw.toFixed(0)}  pitch ${this.pitch.toFixed(0)}  fov ${this.fov.toFixed(0)}   drag: look · wheel/pinch: zoom · F: flat view · double-click: reset`);
+      if (this.hasPano && this.mode === "pano") parts.push(`yaw ${this.yaw.toFixed(0)}  pitch ${this.pitch.toFixed(0)}  fov ${this.fov.toFixed(0)}   drag: look · wheel/pinch: zoom · S: save view · F: flat view · double-click: reset`);
       else if (this.hasPano) parts.push("flat view · press F for the interactive view");
       this.hud.textContent = parts.join("   ");
     }

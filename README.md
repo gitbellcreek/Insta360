@@ -53,6 +53,19 @@ How to use it:
    works through the folder. Progress shows in the status bar.
 3. Drag to look around, wheel or pinch to zoom, arrows to pan, `F` for the
    flat equirectangular view, double-click to reset.
+4. *Save view* (or `S`) turns what you are looking at into an ordinary
+   photo: a rectilinear render of the current direction and zoom at the size
+   chosen in the *View* menu (window size, 1920×1080, 2560×1440, 3840×2160,
+   portrait 1080×1920 or square 2048×2048). When the chosen shape differs
+   from the window, a frame on the viewer shows exactly what will be saved.
+   Files are named after the source and the view, for example
+   `IMG_..._view_yaw+035_pitch-08_fov70.jpg`, and go to `stitched/` or the
+   downloads folder like the panoramas.
+
+The page always loads the newest version: a network-first service worker
+(`docs/sw.js`) revalidates every file with GitHub on each visit, so a normal
+reload is enough after an update and nobody needs a hard refresh. The last
+good copy is kept only as an offline fallback.
 
 The width menu only offers sizes the GPU can hold; 4096 is the default, 6080
 the camera's native size. Stitching takes a second or two on a desktop GPU at
